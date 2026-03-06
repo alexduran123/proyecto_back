@@ -1,19 +1,40 @@
 <?php
 
-// routes/api.php
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
-use App\Http\Controllers\Api\DashboardController;
-// FALTA ESTA LÍNEA:
+use App\Http\Controllers\DashboardController;
+use App\Events\NotificationSent;
 use App\Http\Controllers\ChatController; 
+use App\Http\Controllers\AuthController;
+use App\Models\Mensaje;
 
-// Esta ruta servirá para que React pida los datos del dashboard
-Route::get('/dashboard', [DashboardController::class, 'index']);
+// --- RUTAS PÚBLICAS ---
+Route::post('/login', [AuthController::class, 'login']);
 
-// Esta es la ruta para el Chat
-Route::post('/send-message', [ChatController::class, 'sendMessage']);
+// --- RUTAS PROTEGIDAS (Requieren Token) ---
+Route::middleware('auth:sanctum')->group(function () {
+    
+    // Dashboard
+    Route::get('/dashboard', [DashboardController::class, 'index']);
 
-Route::get('/messages', function () {
-    // Traemos los últimos 50 mensajes de la tabla 'mensajes'
-    return App\Models\Mensaje::latest()->take(50)->get()->reverse()->values();
+    // Chat
+    Route::post('/send-message', [ChatController::class, 'sendMessage']);
+    Route::get('/messages', function () {
+        return Mensaje::latest()->take(50)->get()->reverse()->values();
+    });
+
+    // Envío de Notificaciones (Solo si es Admin)
+    Route::post('/send-notif', function (Request $request) {
+    // Quitamos el IF un momento para probar si es un problema de permisos
+    $type = $request->input('type');
+    $message = $request->input('message');
+    $id_referencia = $request->input('id_referencia', 0);
+
+    event(new NotificationSent($type, $message, $id_referencia));
+
+    return response()->json([
+        'status' => 'success',
+        'message' => 'Notificación enviada correctamente'
+    ]);
+});
 });
