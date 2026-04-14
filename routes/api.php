@@ -9,74 +9,60 @@ use App\Http\Controllers\AuthController;
 use App\Models\Mensaje;
 use App\Models\Usuario;
 
-
-//Rutas Públicas
-
-
-// Registro y Login
+// Rutas Públicas
 Route::post('/login', [AuthController::class, 'login']);
 Route::post('/register', [AuthController::class, 'register']);
 
-// Ruta de Verificación de Email
+// Verificación de cuenta desde el correo
 Route::get('/email/verify/{id}/{hash}', function ($id, $hash) {
-    // Buscamos al usuario por su ID
     $user = Usuario::findOrFail($id);
 
-    // Verificamos que el hash del enlace coincida con el correo del usuario
     if (!hash_equals((string) $hash, sha1($user->getEmailForVerification()))) {
-        return response()->json(['message' => 'El enlace de verificación ha expirado o es inválido.'], 403);
+        return response()->json(['message' => 'Link inválido'], 403);
     }
 
-    // Si no está verificado, lo marcamos ahora
     if (!$user->hasVerifiedEmail()) {
         $user->markEmailAsVerified();
-        // Disparar evento opcional si quieres hacer algo extra al verificar
         event(new \Illuminate\Auth\Events\Verified($user));
     }
 
-    // Redirigir al Login de React con un parámetro de éxito
     return redirect('http://localhost:5173/login?verified=true');
 })->name('verification.verify');
 
-
-//Rutas Protegidas (Requieren Login y Email Verificado)
-
-
+// Rutas Protegidas
 Route::middleware(['auth:sanctum', 'verified'])->group(function () {
     
-    // Perfil de usuario y Dashboard
+    // Perfil y Dashboard
     Route::get('/user', function (Request $request) {
         return $request->user();
     });
-
     Route::get('/dashboard', [DashboardController::class, 'index']);
 
-    // Chat en tiempo real
+    // Seguridad: Cambio de clave y logout
+    Route::post('/change-password', [AuthController::class, 'changePassword']);
+    Route::post('/logout', [AuthController::class, 'logout']);
+
+    // Chat
     Route::post('/send-message', [ChatController::class, 'sendMessage']);
     Route::get('/messages', function () {
         return Mensaje::latest()->take(50)->get()->reverse()->values();
     });
 
-    // Notificaciones (Solo Administradores)
+    // Notificaciones de Admin
     Route::post('/send-notif', function (Request $request) {
-        // Validación de rol administrativo
         if (!$request->user()->admin) {
-            return response()->json(['message' => 'Acceso denegado: Se requieren permisos de administrador.'], 403);
+            return response()->json(['message' => 'No eres admin'], 403);
         }
 
         $type = $request->input('type');
         $message = $request->input('message');
         $id_referencia = $request->input('id_referencia', 0);
 
-        // Disparar evento para Pusher/Websockets
         event(new NotificationSent($type, $message, $id_referencia));
 
         return response()->json([
             'status' => 'success',
-            'message' => 'Notificación enviada globalmente'
+            'message' => 'Notificación enviada'
         ]);
     });
-
-    // Logout
-    Route::post('/logout', [AuthController::class, 'logout']);
 });
