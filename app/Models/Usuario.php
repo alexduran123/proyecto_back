@@ -1,42 +1,25 @@
 <?php
 
 namespace App\Models;
+namespace App\Models;
 
+use Illuminate\Contracts\Auth\MustVerifyEmail; // Importante
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use Laravel\Sanctum\HasApiTokens;
-use Illuminate\Database\Eloquent\Factories\HasFactory;
 
-class Usuario extends Authenticatable
+class Usuario extends Authenticatable implements MustVerifyEmail
 {
-    use HasApiTokens, HasFactory, Notifiable;
+    use HasApiTokens, Notifiable;
 
     protected $table = 'usuarios';
     
-    // Si tu tabla usa un ID diferente a 'id', ponlo aquí (ejemplo: 'id_usuario')
-    // protected $primaryKey = 'id_usuario'; 
+    protected $fillable = ['id_persona', 'email', 'pass', 'admin', 'email_verified_at' ];
 
-    protected $fillable = [
-        'id_persona',
-        'email',
-        'pass',
-        'admin',
-    ];
-
-    protected $hidden = [
-        'pass',
-        'remember_token',
-    ];
-
-    // INDISPENSABLE: Indica que 'pass' debe tratarse como el password oficial
     public function getAuthPassword()
     {
         return $this->pass;
     }
-
-    // Opcional pero recomendado: para que Laravel sepa que 'pass' está encriptado
-    protected $casts = [
-        'admin' => 'boolean',
-        'pass' => 'hashed', 
-    ];
+    const UPDATED_AT = 'updated_at'; 
+    const CREATED_AT = 'created_at';
 }
