@@ -29,6 +29,10 @@ Route::get('/email/verify/{id}/{hash}', function ($id, $hash) {
     return redirect('http://localhost:5173/login?verified=true');
 })->name('verification.verify');
 
+// Rutas Públicas
+Route::post('/forgot-password', [AuthController::class, 'sendResetCode']);
+Route::post('/reset-password', [AuthController::class, 'resetPassword']);
+
 // Rutas Protegidas
 Route::middleware(['auth:sanctum', 'verified'])->group(function () {
     
